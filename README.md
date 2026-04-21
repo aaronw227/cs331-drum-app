@@ -45,15 +45,6 @@ The Web Audio modules preserve the logic from the original Python prototype:
 - **metronome.js** — same 20–300 BPM validation range as `metronome.py`, uses lookahead scheduling (`AudioContext.currentTime` + 100ms lookahead, 25ms scheduler tick) for sample-accurate timing.
 - **listener.js** — same `THRESHOLD = 0.15` and `COOLDOWN = 0.15s` semantics as `listener.py`, using `AnalyserNode.getFloatTimeDomainData` to sample peak amplitude per block.
 
-## Roadmap
-
-- **Day 1** ✅ — Scaffolding, metronome, mic listener
-- **Day 2** — Exercise data model + play-along engine + timing scorer
-- **Day 3** — Exercise browser UI, beat-grid visualizer, immediate feedback and improvement suggestions
-- **Day 4** — Standalone metronome view, progress tracking + dashboard
-- **Day 5** — Flesh out exercise content (rudiments, timing, dynamics), mic + timing calibration
-- **Day 6** — Polish, README, submission write-up
-
 ## Scope note
 
 The original Requirements Analysis specified a cross-platform mobile app. Given the 6-day timeline and the need for a visually rich play-along experience, the project has been refocused as a web app prototype. This gives the same cross-platform reach (browsers on desktop and mobile) while enabling precise Web Audio scheduling and a scrolling beat-grid visual. Native mobile remains a future-wishes item.
