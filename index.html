@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drum Trainer</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">🥁</span>
+      <span class="brand-name">Drum Trainer</span>
+    </div>
+    <nav class="app-nav">
+      <a href="#/home" data-route="home">Home</a>
+      <a href="#/exercises" data-route="exercises">Exercises</a>
+      <a href="#/metronome" data-route="metronome">Metronome</a>
+      <a href="#/progress" data-route="progress">Progress</a>
+    </nav>
+  </header>
+
+  <div id="mic-banner" class="mic-banner hidden">
+    <span id="mic-banner-text">Microphone access needed for hit detection.</span>
+    <button id="mic-enable">Enable Microphone</button>
+  </div>
+
+  <main id="view" class="view"></main>
+
+  <!-- View templates -->
+  <template id="tpl-home">
+    <section class="home">
+      <h1>Practice with purpose.</h1>
+      <p class="lede">
+        Structured drum exercises, live timing feedback, and progress tracking.
+        Pick a category, play along with the click, and get immediate feedback on every hit.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#/exercises">Browse Exercises</a>
+        <a class="btn" href="#/metronome">Open Metronome</a>
+      </div>
+      <div class="diag-card">
+        <h3>Quick diagnostics</h3>
+        <p class="muted">Confirm the audio pipeline is working end-to-end.</p>
+        <div class="diag-controls">
+          <button id="diag-click-test">Play Test Click</button>
+          <button id="diag-metro-test">Start Test Metronome (120 BPM)</button>
+          <button id="diag-metro-stop">Stop</button>
+          <button id="diag-mic-test">Start Mic Test</button>
+          <button id="diag-mic-stop">Stop Mic Test</button>
+        </div>
+        <div id="diag-output" class="diag-output">Idle.</div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-exercises">
+    <section class="placeholder">
+      <h1>Exercises</h1>
+      <p class="muted">Coming on Day 2–3: browse by category and difficulty.</p>
+    </section>
+  </template>
+
+  <template id="tpl-metronome">
+    <section class="placeholder">
+      <h1>Metronome</h1>
+      <p class="muted">Coming on Day 4: standalone 40–300 BPM metronome with 4/4 and 3/4 time signatures.</p>
+    </section>
+  </template>
+
+  <template id="tpl-progress">
+    <section class="placeholder">
+      <h1>Progress</h1>
+      <p class="muted">Coming on Day 4: per-category progress bars and total practice minutes.</p>
+    </section>
+  </template>
+
+  <!-- Scripts loaded as modules -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

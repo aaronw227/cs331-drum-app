@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Node (in case we add npm tooling later)
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Temp and build
+*.log
+*.tmp
+tempCodeRunnerFile.*
+dist/
+build/
+
+# OneDrive conflict artifacts
+*-CONFLICT-*.*

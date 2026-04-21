@@ -1,0 +1,185 @@
+/* Drum Trainer - base styles
+   Dark theme, modern sans, generous spacing.
+   Kept intentionally small so Day 1 scaffold stays readable. */
+
+:root {
+  --bg:        #0f1117;
+  --bg-elev:   #161923;
+  --bg-card:   #1c2130;
+  --fg:        #e8ecf4;
+  --fg-muted:  #8b93a7;
+  --accent:    #4ea1ff;
+  --accent-2:  #8b5cf6;
+  --good:      #22c55e;
+  --warn:      #f59e0b;
+  --bad:       #ef4444;
+  --border:    #2a3142;
+  --radius:    10px;
+  --shadow:    0 2px 16px rgba(0,0,0,0.35);
+  --font:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.brand-mark { font-size: 1.4rem; }
+
+.app-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+.app-nav a {
+  color: var(--fg-muted);
+  text-decoration: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius);
+  font-weight: 500;
+  transition: background .15s ease, color .15s ease;
+}
+.app-nav a:hover { color: var(--fg); background: var(--bg-card); }
+.app-nav a.active {
+  color: var(--fg);
+  background: var(--bg-card);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* Mic permission banner */
+.mic-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #2a1f0a;
+  color: #fbd08a;
+  border-bottom: 1px solid #614110;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.95rem;
+}
+.mic-banner.hidden { display: none; }
+.mic-banner button {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Main view */
+.view {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+/* Typography */
+h1 { font-size: 2rem; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+h3 { margin: 0 0 0.5rem; }
+.lede { font-size: 1.1rem; color: var(--fg-muted); max-width: 60ch; }
+.muted { color: var(--fg-muted); }
+
+/* Buttons */
+.btn, button {
+  display: inline-block;
+  background: var(--bg-card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background .15s ease, border-color .15s ease, transform .05s ease;
+}
+.btn:hover, button:hover {
+  background: var(--bg-elev);
+  border-color: #3a4358;
+}
+.btn:active, button:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: #2f8be8; border-color: #2f8be8; }
+
+/* Home page */
+.cta-row {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.25rem 0 2rem;
+  flex-wrap: wrap;
+}
+
+.diag-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  max-width: 720px;
+  box-shadow: var(--shadow);
+}
+.diag-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.diag-output {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-height: 6rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  color: var(--fg-muted);
+}
+.diag-output .hit { color: var(--good); }
+.diag-output .miss { color: var(--bad); }
+.diag-output .info { color: var(--accent); }
+
+/* Placeholder views */
+.placeholder {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+}
