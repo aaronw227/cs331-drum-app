@@ -2,10 +2,6 @@
 
 A web-based drum learning app: structured exercises, live timing feedback against a metronome, and progress tracking. Inspired by Guitar Hero but focused on education.
 
-## Status
-
-**Day 1 of 6** — scaffolding complete. Working Web Audio metronome and microphone hit detection, verifiable from the Home page diagnostics panel.
-
 ## Run locally
 
 Because the app fetches audio samples, it cannot be opened via `file://` — a local web server is required. Any simple static server works.
