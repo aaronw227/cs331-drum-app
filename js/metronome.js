@@ -2,7 +2,7 @@
 // Web Audio metronome using the lookahead-scheduler pattern.
 // Ported from legacy-python/metronome.py with equivalent BPM validation (20-300).
 //
-// Key difference from Python: we schedule beats using AudioContext.currentTime
+// This schedules beats using AudioContext.currentTime
 // so timing is sample-accurate regardless of JS event-loop jitter. The scheduler
 // runs on a setInterval tick (lookahead ~ 25ms) and queues beats up to
 // SCHEDULE_AHEAD_TIME seconds in advance.

@@ -51,6 +51,23 @@
         </div>
         <div id="diag-output" class="diag-output">Idle.</div>
       </div>
+
+      <div class="diag-card" style="margin-top:1rem;">
+        <h3>Day 2 - Run an exercise</h3>
+        <p class="muted">
+          Pick an exercise, then press Run. The metronome will play one measure
+          of countdown, then start the exercise. Tap along on your drum or
+          desk; every hit is judged against the expected beat and reported
+          live. When the run finishes you'll see a summary plus suggestions.
+        </p>
+        <div class="diag-controls">
+          <label for="ex-picker" class="muted" style="align-self:center;">Exercise:</label>
+          <select id="ex-picker"></select>
+          <button id="ex-run">Run Exercise</button>
+          <button id="ex-stop">Stop</button>
+        </div>
+        <div id="ex-status" class="diag-output">No exercise running.</div>
+      </div>
     </section>
   </template>
 

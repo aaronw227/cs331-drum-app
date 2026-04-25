@@ -4,7 +4,13 @@ A web-based drum learning app: structured exercises, live timing feedback agains
 
 ## Status
 
-**Day 1 of 6** — scaffolding complete. Working Web Audio metronome and microphone hit detection, verifiable from the Home page diagnostics panel.
+**Day 2 of 6** — exercise data model, play-along engine, and timing scorer are complete. End-to-end runnable from the Home page (pick an exercise, press Run, tap along; live judgments and a final summary with practice suggestions are shown).
+
+## Project documentation
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for a thorough walk-through of every design decision: why we chose a web app, how the lookahead scheduler works, how the scorer pairs hits to expected beats, why the timing windows are 30 ms / 80 ms, how the suggestions engine generates tips, and known risks. Read this before a code review or demo — it's structured so you can defend every design choice.
+
+Every JavaScript module also has a long header comment explaining its responsibility and key algorithms in plain English.
 
 ## Run locally
 
@@ -35,10 +41,15 @@ Drum App/
 │   ├── app.js               Entry point, router, view wiring
 │   ├── audio.js             Shared AudioContext + sample loading
 │   ├── metronome.js         Lookahead-scheduled Web Audio metronome
-│   └── listener.js          Mic hit detection (getUserMedia + AnalyserNode)
+│   ├── listener.js          Mic hit detection (getUserMedia + AnalyserNode)
+│   ├── exercises.js         Exercise library (data + lookups)
+│   ├── scorer.js            Timing classifier + suggestions engine
+│   └── engine.js            Play-along orchestrator
 ├── assets/
 │   ├── click.wav            Regular beat sample
 │   └── click-accent.wav     Downbeat / accent sample
+├── docs/
+│   └── ARCHITECTURE.md      Design decisions, algorithms, and risks
 └── legacy-python/           Original Python prototype (metronome.py, listener.py, test.py)
 ```
 
@@ -52,8 +63,8 @@ The Web Audio modules preserve the logic from the original Python prototype:
 ## Roadmap
 
 - **Day 1** ✅ — Scaffolding, metronome, mic listener
-- **Day 2** — Exercise data model + play-along engine + timing scorer
-- **Day 3** — Exercise browser UI, beat-grid visualizer, immediate feedback and improvement suggestions
+- **Day 2** ✅ — Exercise data model, play-along engine, timing scorer, suggestions engine
+- **Day 3** — Exercise browser UI, beat-grid visualizer, polished immediate feedback view
 - **Day 4** — Standalone metronome view, progress tracking + dashboard
 - **Day 5** — Flesh out exercise content (rudiments, timing, dynamics), mic + timing calibration
 - **Day 6** — Polish, README, submission write-up
