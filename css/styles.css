@@ -1,11 +1,27 @@
-/* Drum Trainer - base styles
-   Dark theme, modern sans, generous spacing.
-   Kept intentionally small so Day 1 scaffold stays readable. */
+/* ============================================================================
+   Drum Trainer - styles.css
+   ----------------------------------------------------------------------------
+   Single stylesheet. Organized top-down by component:
+
+     1. Variables, reset, typography
+     2. Layout shell (header, nav, mic banner, view container)
+     3. Buttons and shared utilities
+     4. Home view (hero, diagnostics card)
+     5. Exercises view (category grid, exercise cards)
+     6. Play view (header, pre-run, running, canvas, results)
+     7. Misc placeholders
+
+   Colors are defined as CSS custom properties in :root so the entire palette
+   is themable from one place.
+   ============================================================================ */
+
+/* -- 1. Variables, reset, typography ---------------------------------------- */
 
 :root {
   --bg:        #0f1117;
   --bg-elev:   #161923;
   --bg-card:   #1c2130;
+  --bg-card-2: #232a3d;
   --fg:        #e8ecf4;
   --fg-muted:  #8b93a7;
   --accent:    #4ea1ff;
@@ -14,8 +30,11 @@
   --warn:      #f59e0b;
   --bad:       #ef4444;
   --border:    #2a3142;
+  --border-2:  #3a4358;
   --radius:    10px;
+  --radius-lg: 14px;
   --shadow:    0 2px 16px rgba(0,0,0,0.35);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.45);
   --font:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
 }
 
@@ -32,7 +51,19 @@ html, body {
   min-height: 100vh;
 }
 
-/* Header */
+a { color: var(--accent); }
+
+h1 { font-size: 2rem;   margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.5rem; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+h4 { font-size: 1rem;    margin: 1rem 0 0.5rem; }
+
+.lede { font-size: 1.1rem; color: var(--fg-muted); max-width: 60ch; }
+.muted { color: var(--fg-muted); }
+.small { font-size: 0.88rem; }
+
+/* -- 2. Layout shell -------------------------------------------------------- */
+
 .app-header {
   display: flex;
   align-items: center;
@@ -44,7 +75,6 @@ html, body {
   top: 0;
   z-index: 10;
 }
-
 .brand {
   display: flex;
   align-items: center;
@@ -53,11 +83,9 @@ html, body {
   font-size: 1.1rem;
 }
 .brand-mark { font-size: 1.4rem; }
+.brand-name { color: var(--fg); text-decoration: none; }
 
-.app-nav {
-  display: flex;
-  gap: 0.25rem;
-}
+.app-nav { display: flex; gap: 0.25rem; }
 .app-nav a {
   color: var(--fg-muted);
   text-decoration: none;
@@ -73,7 +101,6 @@ html, body {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-/* Mic permission banner */
 .mic-banner {
   display: flex;
   align-items: center;
@@ -96,20 +123,14 @@ html, body {
   font-weight: 600;
 }
 
-/* Main view */
 .view {
   max-width: 1040px;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
 }
 
-/* Typography */
-h1 { font-size: 2rem; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
-h3 { margin: 0 0 0.5rem; }
-.lede { font-size: 1.1rem; color: var(--fg-muted); max-width: 60ch; }
-.muted { color: var(--fg-muted); }
+/* -- 3. Buttons and utilities ---------------------------------------------- */
 
-/* Buttons */
 .btn, button {
   display: inline-block;
   background: var(--bg-card);
@@ -126,7 +147,8 @@ h3 { margin: 0 0 0.5rem; }
 }
 .btn:hover, button:hover {
   background: var(--bg-elev);
-  border-color: #3a4358;
+  border-color: var(--border-2);
+  color: var(--fg);
 }
 .btn:active, button:active { transform: translateY(1px); }
 .btn-primary {
@@ -134,9 +156,23 @@ h3 { margin: 0 0 0.5rem; }
   border-color: var(--accent);
   color: #fff;
 }
-.btn-primary:hover { background: #2f8be8; border-color: #2f8be8; }
+.btn-primary:hover { background: #2f8be8; border-color: #2f8be8; color: #fff; }
+.btn-large {
+  font-size: 1.1rem;
+  padding: 0.85rem 1.6rem;
+}
 
-/* Home page */
+.back-link {
+  display: inline-block;
+  color: var(--fg-muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+.back-link:hover { color: var(--fg); }
+
+/* -- 4. Home view ---------------------------------------------------------- */
+
 .cta-row {
   display: flex;
   gap: 0.75rem;
@@ -151,7 +187,14 @@ h3 { margin: 0 0 0.5rem; }
   padding: 1.25rem;
   max-width: 720px;
   box-shadow: var(--shadow);
+  margin-top: 1rem;
 }
+.diag-card summary {
+  cursor: pointer;
+  font-weight: 600;
+  outline: none;
+}
+.diag-card[open] summary { margin-bottom: 0.75rem; }
 .diag-controls {
   display: flex;
   flex-wrap: wrap;
@@ -165,21 +208,264 @@ h3 { margin: 0 0 0.5rem; }
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem;
-  min-height: 6rem;
+  min-height: 5rem;
   max-height: 14rem;
   overflow-y: auto;
   white-space: pre-wrap;
   color: var(--fg-muted);
 }
-.diag-output .hit { color: var(--good); }
+.diag-output .hit  { color: var(--good); }
 .diag-output .miss { color: var(--bad); }
 .diag-output .info { color: var(--accent); }
 
-/* Placeholder views */
+/* -- 5. Exercises view ----------------------------------------------------- */
+
+.category-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.category-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transition: transform .12s ease, border-color .15s ease, background .15s ease;
+}
+.category-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  background: var(--bg-card-2);
+}
+.category-card h2 { color: var(--fg); }
+.category-card p { color: var(--fg-muted); margin: 0; }
+.category-meta {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+}
+
+.category-detail h1 { margin-top: 0.25rem; }
+.tier-section { margin-top: 1.75rem; }
+.tier-heading {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+}
+.tier-beginner    { color: #86efac; border-color: #14532d; background: rgba(34,197,94,0.10); }
+.tier-intermediate{ color: #fcd34d; border-color: #78350f; background: rgba(245,158,11,0.10); }
+.tier-advanced    { color: #fca5a5; border-color: #7f1d1d; background: rgba(239,68,68,0.10); }
+
+.exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.exercise-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  transition: border-color .15s ease;
+}
+.exercise-card:hover { border-color: var(--border-2); }
+.exercise-card-text { flex: 1; min-width: 0; }
+.exercise-card h4 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+.exercise-card p  { margin: 0.15rem 0; }
+.exercise-meta { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.4rem !important; }
+
+/* -- 6. Play view ---------------------------------------------------------- */
+
+.play-view {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.play-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.play-title h2 { margin: 0; font-size: 1.5rem; }
+.play-title p { margin: 0; }
+
+.play-body {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+/* Pre-run */
+.pre-run h3 { margin-top: 0; }
+.tip-list {
+  margin: 0.5rem 0 1.5rem;
+  padding-left: 1.25rem;
+}
+.tip-list li {
+  color: var(--fg);
+  margin: 0.4rem 0;
+}
+.pre-run-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Running */
+.running { display: flex; flex-direction: column; gap: 1rem; }
+.live-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+}
+.live-accuracy { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+.live-counts { color: var(--fg-muted); }
+
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.play-canvas {
+  display: block;
+  width: 100%;
+  height: 480px;
+}
+
+.running-controls {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+/* Results */
+.results { text-align: center; }
+.results h3 { font-size: 2rem; margin: 0.5rem 0; }
+.results h4 { text-align: left; margin-top: 1.5rem; }
+
+.results-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  font-size: 3rem;
+  font-weight: 800;
+  margin: 0 auto 0.5rem;
+  border: 3px solid;
+}
+.grade-a { color: var(--good); border-color: var(--good); background: rgba(34,197,94,0.10); }
+.grade-b { color: var(--accent); border-color: var(--accent); background: rgba(78,161,255,0.10); }
+.grade-c { color: var(--warn); border-color: var(--warn); background: rgba(245,158,11,0.10); }
+.grade-d { color: var(--warn); border-color: var(--warn); background: rgba(245,158,11,0.15); }
+.grade-f { color: var(--bad); border-color: var(--bad); background: rgba(239,68,68,0.12); }
+
+.results-counts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.stat-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.5rem;
+  text-align: center;
+}
+.stat-value { font-size: 1.5rem; font-weight: 700; }
+.stat-label { font-size: 0.78rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.15rem; }
+.count-perfect .stat-value { color: var(--good); }
+.count-good    .stat-value { color: var(--warn); }
+.count-miss    .stat-value { color: var(--bad); }
+.count-extras  .stat-value { color: var(--fg-muted); }
+
+.suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 1.5rem;
+  text-align: left;
+}
+.suggestion {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  line-height: 1.45;
+}
+.suggestion-positive { border-left-color: var(--good); }
+.suggestion-low      { border-left-color: var(--fg-muted); }
+.suggestion-medium   { border-left-color: var(--warn); }
+.suggestion-high     { border-left-color: var(--bad); }
+
+.results-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+/* Errors */
+.error-card {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.40);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.error-card h3 { color: var(--bad); margin-top: 0; }
+
+/* -- 7. Placeholders -------------------------------------------------------- */
+
 .placeholder {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 2rem;
   text-align: center;
+}
+
+/* -- Responsive tweaks ---------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .app-header { padding: 0.75rem 1rem; }
+  .app-nav a { padding: 0.4rem 0.65rem; font-size: 0.92rem; }
+  .view { padding: 1.25rem 1rem 3rem; }
+  h1 { font-size: 1.6rem; }
+  .play-canvas { height: 380px; }
+  .results-counts { grid-template-columns: repeat(2, 1fr); }
+  .exercise-card { flex-direction: column; align-items: flex-start; }
 }

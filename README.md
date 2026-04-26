@@ -4,7 +4,7 @@ A web-based drum learning app: structured exercises, live timing feedback agains
 
 ## Status
 
-**Day 2 of 6** — exercise data model, play-along engine, and timing scorer are complete. End-to-end runnable from the Home page (pick an exercise, press Run, tap along; live judgments and a final summary with practice suggestions are shown).
+**Day 3 of 6** — the visual play-along loop is in. Exercise browser, scrolling beat-grid visualizer (Guitar-Hero-style highway with judgment line, falling notes, and PERFECT/GOOD/MISS flashes), live in-run HUD, and a polished results screen with letter grade + tailored suggestions are all working end-to-end.
 
 ## Project documentation
 
@@ -44,7 +44,9 @@ Drum App/
 │   ├── listener.js          Mic hit detection (getUserMedia + AnalyserNode)
 │   ├── exercises.js         Exercise library (data + lookups)
 │   ├── scorer.js            Timing classifier + suggestions engine
-│   └── engine.js            Play-along orchestrator
+│   ├── engine.js            Play-along orchestrator
+│   ├── views.js             View renderers (home, exercises, play, ...)
+│   └── visualizer.js        Canvas scrolling beat-grid visualizer
 ├── assets/
 │   ├── click.wav            Regular beat sample
 │   └── click-accent.wav     Downbeat / accent sample
@@ -64,7 +66,7 @@ The Web Audio modules preserve the logic from the original Python prototype:
 
 - **Day 1** ✅ — Scaffolding, metronome, mic listener
 - **Day 2** ✅ — Exercise data model, play-along engine, timing scorer, suggestions engine
-- **Day 3** — Exercise browser UI, beat-grid visualizer, polished immediate feedback view
+- **Day 3** ✅ — Exercise browser UI, scrolling beat-grid visualizer, live HUD, polished results screen with letter grade + suggestions
 - **Day 4** — Standalone metronome view, progress tracking + dashboard
 - **Day 5** — Flesh out exercise content (rudiments, timing, dynamics), mic + timing calibration
 - **Day 6** — Polish, README, submission write-up

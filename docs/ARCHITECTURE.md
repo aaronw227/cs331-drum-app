@@ -12,13 +12,15 @@ Each concern lives in its own JavaScript module. Modules communicate via subscri
 
 ```
 index.html
-└── js/app.js                 SPA router and view glue
+└── js/app.js                 SPA router + audio singletons (only "glue" code)
     ├── js/audio.js           Shared AudioContext + sample loader
     ├── js/metronome.js       Web Audio metronome
     ├── js/listener.js        Microphone hit detector
     ├── js/scorer.js          Timing classifier and suggestions
     ├── js/engine.js          Play-along orchestrator
-    └── js/exercises.js       Exercise content (data)
+    ├── js/exercises.js       Exercise content (data)
+    ├── js/views.js           View renderers (home, exercises, play, ...)
+    └── js/visualizer.js      Canvas-based scrolling beat grid
 ```
 
 ## 2. Why a web app instead of native mobile?
@@ -223,6 +225,57 @@ We return at most three tips so the user isn't overwhelmed. Severity (`positive`
 ```
 
 `localStorage` is correct for this app because (a) it works without a backend, (b) the data is single-device by design (a student practicing alone), and (c) it's trivially easy to inspect and reason about. If we ever need cloud sync we'll move to `IndexedDB` plus a Firestore mirror — but that's wishes-tier and out of MVP scope.
+
+## 10b. The visualizer (Day 3)
+
+`js/visualizer.js` renders the scrolling beat grid that fills most of the play screen. It is a thin canvas-2D component, intentionally not tied to any framework.
+
+**Coordinate system.** Time flows top-to-bottom. The judgment line sits at 78% of the canvas height. A beat reaches the judgment line at exactly its expected time. Future beats appear above; past beats slide briefly below before fading out.
+
+**Time-to-pixel mapping.** Each frame we compute `dt = expected.time - audioCtx.currentTime` for every expected beat. The beat's Y is then:
+
+```
+y = judgmentY * (1 - dt / LOOKAHEAD_SEC)
+```
+
+so `dt = LOOKAHEAD` puts the beat at the top, `dt = 0` puts it on the judgment line, and negative `dt` puts it below. `LOOKAHEAD_SEC` (2.0) controls how far the user can see ahead.
+
+**Pull, don't push.** The visualizer subscribes to *nothing*. Each animation frame it reads `engine.scorer.expected` and `engine.ctx.currentTime` directly. This makes rendering deterministic — the picture you see is always the picture for *right now*, not whatever the most recent event told us. Engine events are still used (in `views.js`) to trigger one-shot judgment flashes via `visualizer.flashJudgment(judgment)`, but the steady-state render loop is pull-based.
+
+**Drawing pipeline per frame.**
+
+1. Clear the canvas and paint the dark background.
+2. Stroke faint horizontal time-grid lines (one every 0.25 s of lookahead) so the user can sense scroll speed.
+3. Stroke the judgment line plus a soft glow band.
+4. For each expected beat in range, draw a colored circle: blue (pending), green (perfect), yellow (good), red (miss). Pending beats pulse slightly larger as they approach the line. Sticking labels (R, L, etc.) render inside the circle when the exercise has them.
+5. If a flash is active, paint a translucent band across the judgment line plus a floating "PERFECT / GOOD / MISS" label that drifts upward as it fades.
+6. Render a small HUD with title, BPM, time signature, and live accuracy / counts.
+
+**High-DPI handling.** On `resize` we set `canvas.width = cssWidth * devicePixelRatio` and apply a `setTransform(dpr, 0, 0, dpr, 0, 0)` so all our drawing calls remain in CSS pixels but the backing store is sharp on retina displays.
+
+## 10c. The view layer (Day 3)
+
+`js/views.js` exports one renderer per route. Each renderer takes `(deps, view, args)` and mutates the view container. There is no virtual DOM. We use a tiny `el(tag, attrs, children)` helper to keep the construction code readable without pulling in a framework.
+
+**Routing parameters.** `app.js` parses the hash on `/` boundaries:
+
+```
+#/exercises             -> route='exercises', args=[]
+#/exercises/rudiments   -> route='exercises', args=['rudiments']
+#/play/rud-singles-beg  -> route='play',      args=['rud-singles-beg']
+```
+
+This is enough for our four views without bringing in a router library.
+
+**Play view state machine.** Three phases driven by engine state:
+
+- **Pre-run** — exercise tips and a Start button. No audio is active.
+- **Running** — visualizer animating, mic live, judgments streaming. Subscribes to `engine.onUpdate` for per-event flashes and live-stat refreshes.
+- **Results** — stats summary, letter grade, up to three tailored suggestions, and three buttons (Try Again, Pick Another, Home).
+
+The phase transitions are driven by the engine's `onUpdate` and `onComplete` callbacks rather than timers, so the UI stays in sync with actual audio state, not a guess.
+
+**Letter grade.** `letterGrade(stats)` in `views.js` maps accuracy and perfect-rate to A–F. The boundaries are tunable; current values are A ≥ 95% accuracy with 70%+ perfect, B ≥ 85%, C ≥ 70%, D ≥ 50%, F otherwise.
 
 ## 11. Why no framework?
 
