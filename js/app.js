@@ -21,9 +21,10 @@ import { getAudioContext, unlockAudio, loadSample } from './audio.js';
 import { Metronome } from './metronome.js';
 import { MicListener } from './listener.js';
 import { PlayAlongEngine } from './engine.js';
-import { renderHome, renderExercises, renderPlay, renderMetronome, renderProgress } from './views.js';
+import { CalibrationRunner } from './calibration.js';
+import { renderHome, renderExercises, renderPlay, renderMetronome, renderProgress, renderCalibration } from './views.js';
 
-const ROUTES = ['home', 'exercises', 'metronome', 'progress', 'play'];
+const ROUTES = ['home', 'exercises', 'metronome', 'progress', 'play', 'calibrate'];
 const DEFAULT_ROUTE = 'home';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,18 @@ async function getEngine() {
   return _engine;
 }
 
+/**
+ * Calibration uses the same singletons (metronome + mic) as the engine.
+ * We don't cache the runner itself - one fresh instance per calibration is
+ * cheap and keeps state between attempts clean.
+ */
+async function getCalibration() {
+  const ctx = await unlockAudio();
+  const metro = await getMetronome();
+  const mic = await getMic();
+  return new CalibrationRunner({ audioCtx: ctx, metronome: metro, micListener: mic });
+}
+
 // Synchronous "if-already-built" accessors so views can stop running audio
 // without inadvertently constructing it.
 const getMetronomeIfReady = () => _metro;
@@ -82,6 +95,7 @@ const deps = {
   getMetronome,
   getMic,
   getEngine,
+  getCalibration,
   getMetronomeIfReady,
   getMicIfReady,
   getEngineIfReady,
@@ -114,6 +128,7 @@ function render() {
     case 'play':       renderPlay(deps, view, args); break;
     case 'metronome':  renderMetronome(deps, view); break;
     case 'progress':   renderProgress(deps, view); break;
+    case 'calibrate':  renderCalibration(deps, view); break;
     default:           renderHome(deps, view);
   }
 }

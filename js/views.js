@@ -13,6 +13,18 @@
 
 import { CATEGORIES, TIERS, EXERCISES, getExercise, getExercisesByCategoryAndTier } from './exercises.js';
 import { Visualizer } from './visualizer.js';
+import {
+  load as loadProgress,
+  reset as resetProgress,
+  recordRun,
+  isMastered,
+  isPlayed,
+  formatDuration,
+  getLatencyOffset,
+  setLatencyOffset,
+  clearCalibration,
+} from './storage.js';
+import { CALIB_CONFIG } from './calibration.js';
 
 // ---------------------------------------------------------------------------
 // Tiny DOM helpers. We do not pull in a framework; these are sufficient.
@@ -58,6 +70,7 @@ export function renderHome(deps, view) {
       el('a', { class: 'btn btn-primary', href: '#/exercises' }, ['Browse Exercises']),
       el('a', { class: 'btn', href: '#/metronome' }, ['Open Metronome']),
     ]),
+    renderCalibrationCard(),
   ]);
 
   // Diagnostics card (collapsed by default)
@@ -292,9 +305,11 @@ export async function renderPlay(deps, view, args) {
   let liveStatsEl = null;
   let lastSeenStats = null;
   let engineRef = null;
+  let runStartedAt = 0;       // wall-clock ms; used to record practice duration
 
   async function startRun() {
     clear(body);
+    runStartedAt = Date.now();
 
     // Build the running layout: live HUD, big canvas, stop button.
     liveStatsEl = el('div', { class: 'live-stats' }, ['Get ready...']);
@@ -391,6 +406,19 @@ export async function renderPlay(deps, view, args) {
     const stdMs = (stats.stdDelta * 1000).toFixed(1);
     const grade = letterGrade(stats);
 
+    // Persist the run to localStorage. Wraps in try so a storage failure
+    // (e.g. private browsing, full quota) never breaks the results screen.
+    try {
+      const durationMs = runStartedAt > 0 ? Date.now() - runStartedAt : 0;
+      recordRun(exercise.id, {
+        accuracy: stats.accuracy,
+        grade,
+        durationMs,
+      });
+    } catch (err) {
+      console.warn('Failed to record run:', err);
+    }
+
     body.appendChild(el('div', { class: 'results' }, [
       el('div', { class: `results-grade grade-${grade.toLowerCase()}` }, [grade]),
       el('h3', {}, [`${acc}% accuracy`]),
@@ -446,27 +474,539 @@ function letterGrade(stats) {
 }
 
 // ============================================================================
-// METRONOME VIEW (Day 4 placeholder)
+// METRONOME VIEW
+// ----------------------------------------------------------------------------
+// Standalone metronome - separate from exercise play mode. The requirements
+// doc specifies 40-300 BPM (we clamp the UI to that) and 4/4 + 3/4 time
+// signatures (we add 2/4 and 6/8 since the underlying class supports it for
+// no extra cost).
+//
+// Visuals:
+//   - Big tempo readout
+//   - Slider, +/-1 / +/-5 buttons, numeric input (all kept in sync)
+//   - Time-signature buttons
+//   - A row of beat dots that light up on each click (downbeat is bigger)
+//   - Start / Stop toggle
+//
+// Cleanup: we register a one-shot hashchange listener that stops the
+// metronome and unsubscribes the onBeat listener so navigating away leaves
+// no audio running.
 // ============================================================================
+
+const METRO_MIN_BPM = 40;
+const METRO_MAX_BPM = 300;
 
 export function renderMetronome(deps, view) {
   clear(view);
-  view.appendChild(el('section', { class: 'placeholder' }, [
+
+  // Local state for this view instance
+  let bpm = 120;
+  let beatsPerMeasure = 4;
+  let metro = null;
+  let unsubBeat = null;
+  let isRunning = false;
+
+  // ---------- DOM elements (built up first, wired below) ----------
+  const tempoValueEl = el('span', { class: 'tempo-value' }, [String(bpm)]);
+  const tempoDisplay = el('div', { class: 'tempo-display' }, [
+    tempoValueEl,
+    el('span', { class: 'tempo-unit' }, ['BPM']),
+  ]);
+
+  const beatRow = el('div', { class: 'beat-row' });
+
+  const slider = el('input', {
+    type: 'range',
+    min: METRO_MIN_BPM, max: METRO_MAX_BPM, value: String(bpm), step: '1',
+    class: 'tempo-slider',
+    'aria-label': 'Tempo slider',
+  });
+  slider.addEventListener('input', (e) => setTempo(Number(e.target.value)));
+
+  const numericInput = el('input', {
+    type: 'number',
+    min: METRO_MIN_BPM, max: METRO_MAX_BPM, value: String(bpm), step: '1',
+    class: 'tempo-input',
+    id: 'tempo-num',
+    'aria-label': 'Set BPM',
+  });
+  numericInput.addEventListener('change', (e) => setTempo(Number(e.target.value)));
+
+  const startStopBtn = el('button', {
+    class: 'btn btn-primary btn-large',
+    onclick: toggleStartStop,
+  }, ['Start']);
+
+  const timeSigOptions = [[2, '2/4'], [3, '3/4'], [4, '4/4'], [6, '6/8']];
+  const timeSigButtons = timeSigOptions.map(([num, label]) =>
+    el('button', {
+      class: 'time-sig-btn' + (num === beatsPerMeasure ? ' active' : ''),
+      'data-num': String(num),
+      onclick: () => setTimeSignature(num),
+    }, [label])
+  );
+
+  // ---------- Helpers ----------
+
+  function rebuildBeatRow() {
+    clear(beatRow);
+    for (let i = 0; i < beatsPerMeasure; i++) {
+      beatRow.appendChild(el('div', {
+        class: 'beat-dot' + (i === 0 ? ' beat-dot-accent' : ''),
+        'data-beat': String(i),
+      }));
+    }
+  }
+
+  function setTempo(newBpm) {
+    const clamped = Math.max(METRO_MIN_BPM, Math.min(METRO_MAX_BPM, Math.round(newBpm)));
+    if (Number.isNaN(clamped)) return;
+    bpm = clamped;
+    tempoValueEl.textContent = String(bpm);
+    slider.value = String(bpm);
+    numericInput.value = String(bpm);
+    if (metro) {
+      // setBpm mid-run is supported by the Metronome class; the next
+      // scheduled beat will use the new tempo.
+      try { metro.setBpm(bpm); } catch (e) { console.warn(e); }
+    }
+  }
+
+  function setTimeSignature(num) {
+    beatsPerMeasure = num;
+    rebuildBeatRow();
+    timeSigButtons.forEach((b) => {
+      b.classList.toggle('active', Number(b.dataset.num) === num);
+    });
+    if (metro) {
+      try { metro.setBeatsPerMeasure(num); } catch (e) { console.warn(e); }
+    }
+  }
+
+  async function toggleStartStop() {
+    if (isRunning) {
+      stopMetro();
+    } else {
+      try {
+        metro = await deps.getMetronome();
+        metro.setBpm(bpm);
+        metro.setBeatsPerMeasure(beatsPerMeasure);
+        // Subscribe each time we start so we don't double-fire if a previous
+        // unsub leaked. The onBeat callback lights up the visual indicator.
+        if (unsubBeat) { unsubBeat(); unsubBeat = null; }
+        unsubBeat = metro.onBeat(({ measureBeat }) => {
+          const dots = beatRow.querySelectorAll('.beat-dot');
+          dots.forEach((d, i) => {
+            d.classList.toggle('active', i === measureBeat);
+          });
+        });
+        metro.start();
+        isRunning = true;
+        startStopBtn.textContent = 'Stop';
+      } catch (err) {
+        console.error('Metronome start failed:', err);
+      }
+    }
+  }
+
+  function stopMetro() {
+    if (metro && isRunning) {
+      try { metro.stop(); } catch {}
+    }
+    if (unsubBeat) { unsubBeat(); unsubBeat = null; }
+    beatRow.querySelectorAll('.beat-dot').forEach((d) => d.classList.remove('active'));
+    isRunning = false;
+    startStopBtn.textContent = 'Start';
+  }
+
+  // Cleanup on navigation away
+  window.addEventListener('hashchange', cleanupOnNav, { once: true });
+  function cleanupOnNav() { stopMetro(); }
+
+  // ---------- Initial render ----------
+
+  rebuildBeatRow();
+
+  view.appendChild(el('section', { class: 'metronome-view' }, [
     el('h1', {}, ['Metronome']),
-    el('p', { class: 'muted' }, ['The standalone metronome view lands on Day 4.']),
-    el('a', { class: 'btn', href: '#/home' }, ['Home']),
+    el('p', { class: 'lede' }, [
+      `Adjustable from ${METRO_MIN_BPM} to ${METRO_MAX_BPM} BPM. Use it on its own to practice with a steady click, or as a warm-up before an exercise.`,
+    ]),
+    el('div', { class: 'metro-card' }, [
+      el('div', { class: 'beat-row-wrap' }, [beatRow]),
+      tempoDisplay,
+      el('div', { class: 'tempo-controls' }, [
+        el('button', { class: 'tempo-step', onclick: () => setTempo(bpm - 5) }, ['−5']),
+        el('button', { class: 'tempo-step', onclick: () => setTempo(bpm - 1) }, ['−1']),
+        slider,
+        el('button', { class: 'tempo-step', onclick: () => setTempo(bpm + 1) }, ['+1']),
+        el('button', { class: 'tempo-step', onclick: () => setTempo(bpm + 5) }, ['+5']),
+      ]),
+      el('div', { class: 'tempo-input-row' }, [
+        el('label', { for: 'tempo-num', class: 'muted' }, ['Set exact BPM:']),
+        numericInput,
+      ]),
+      el('div', { class: 'time-sig-row' }, [
+        el('span', { class: 'muted' }, ['Time signature:']),
+        ...timeSigButtons,
+      ]),
+      el('div', { class: 'metro-start-row' }, [startStopBtn]),
+    ]),
   ]));
 }
 
 // ============================================================================
-// PROGRESS VIEW (Day 4 placeholder)
+// PROGRESS VIEW
+// ----------------------------------------------------------------------------
+// Dashboard rendered from localStorage state. Three sections:
+//
+//   1. Top stats - total practice time, total runs, exercises played,
+//      exercises mastered.
+//   2. Per-category cards - progress bar showing mastered/total, plus a
+//      list of all exercises in the category with their current status.
+//   3. Recent runs table - last 10 runs with timestamp, accuracy, grade.
+//
+// "Mastered" = bestGrade is B or higher (see storage.js MASTERY_GRADE).
 // ============================================================================
 
 export function renderProgress(deps, view) {
   clear(view);
-  view.appendChild(el('section', { class: 'placeholder' }, [
+  const state = loadProgress();
+
+  const masteredCount = countMastered(state);
+  const playedCount = Object.keys(state.exercises).filter((id) => isPlayed(state.exercises[id])).length;
+  const totalExercises = EXERCISES.length;
+
+  view.appendChild(el('section', { class: 'progress-view' }, [
     el('h1', {}, ['Progress']),
-    el('p', { class: 'muted' }, ['Per-category progress bars and total practice minutes land on Day 4.']),
-    el('a', { class: 'btn', href: '#/home' }, ['Home']),
+    el('p', { class: 'lede' }, [
+      'Your practice history. An exercise is "mastered" once you reach a B grade or higher.',
+    ]),
+
+    // Top stats
+    el('div', { class: 'progress-stats' }, [
+      progressStat('Total practice', formatDuration(state.totalPracticeMs)),
+      progressStat('Total runs', String(state.totalRuns)),
+      progressStat('Mastered', `${masteredCount} / ${totalExercises}`),
+      progressStat('Played', `${playedCount} / ${totalExercises}`),
+    ]),
+
+    // Per-category cards
+    el('div', { class: 'progress-categories' },
+      CATEGORIES.map((cat) => renderCategoryProgress(state, cat))
+    ),
+
+    // Recent runs
+    state.runs.length > 0 ? renderRecentRuns(state) : el('div', { class: 'progress-empty' }, [
+      el('p', { class: 'muted' }, ['No runs recorded yet. Play an exercise to start tracking.']),
+      el('a', { class: 'btn btn-primary', href: '#/exercises' }, ['Browse Exercises']),
+    ]),
+
+    // Reset
+    state.totalRuns > 0 ? el('div', { class: 'progress-reset' }, [
+      el('button', { class: 'btn', onclick: () => {
+        if (confirm('Reset all progress? This cannot be undone.')) {
+          resetProgress();
+          renderProgress(deps, view);
+        }
+      } }, ['Reset all progress']),
+    ]) : null,
   ]));
+}
+
+function progressStat(label, value) {
+  return el('div', { class: 'progress-stat' }, [
+    el('div', { class: 'progress-stat-value' }, [value]),
+    el('div', { class: 'progress-stat-label' }, [label]),
+  ]);
+}
+
+function renderCategoryProgress(state, cat) {
+  const exercises = EXERCISES.filter((e) => e.category === cat.id);
+  const total = exercises.length;
+  const mastered = exercises.filter((e) => isMastered(state.exercises[e.id])).length;
+  const played = exercises.filter((e) => isPlayed(state.exercises[e.id])).length;
+  const masteredPct = total > 0 ? (mastered / total) * 100 : 0;
+
+  return el('div', { class: 'progress-category-card' }, [
+    el('div', { class: 'progress-category-head' }, [
+      el('h3', {}, [cat.label]),
+      el('span', { class: 'muted small' }, [`${mastered} / ${total} mastered`]),
+    ]),
+    el('div', { class: 'progress-bar' }, [
+      el('div', { class: 'progress-bar-fill', style: `width: ${masteredPct}%;` }),
+    ]),
+    el('ul', { class: 'progress-exercise-list' },
+      exercises.map((ex) => {
+        const entry = state.exercises[ex.id];
+        let status, statusLabel;
+        if (isMastered(entry)) {
+          status = 'mastered';
+          statusLabel = `Mastered  ·  best ${entry.bestGrade} (${(entry.bestAccuracy * 100).toFixed(0)}%)`;
+        } else if (isPlayed(entry)) {
+          status = 'played';
+          statusLabel = `Played  ·  best ${entry.bestGrade} (${(entry.bestAccuracy * 100).toFixed(0)}%)`;
+        } else {
+          status = 'new';
+          statusLabel = 'Not yet played';
+        }
+        return el('li', { class: `progress-ex progress-ex-${status}` }, [
+          el('span', { class: 'progress-ex-title' }, [ex.title]),
+          el('span', { class: 'progress-ex-status' }, [statusLabel]),
+        ]);
+      })
+    ),
+  ]);
+}
+
+function renderRecentRuns(state) {
+  const recent = state.runs.slice(0, 10);
+  return el('div', { class: 'recent-runs' }, [
+    el('h3', {}, ['Recent runs']),
+    el('table', { class: 'recent-runs-table' }, [
+      el('thead', {}, [
+        el('tr', {}, [
+          el('th', {}, ['When']),
+          el('th', {}, ['Exercise']),
+          el('th', {}, ['Accuracy']),
+          el('th', {}, ['Grade']),
+          el('th', {}, ['Duration']),
+        ]),
+      ]),
+      el('tbody', {},
+        recent.map((r) => {
+          const ex = getExercise(r.exerciseId);
+          const gradeClass = `grade-cell grade-${r.grade.toLowerCase()}`;
+          return el('tr', {}, [
+            el('td', {}, [formatRelative(r.atISO)]),
+            el('td', {}, [ex ? ex.title : r.exerciseId]),
+            el('td', {}, [`${(r.accuracy * 100).toFixed(0)}%`]),
+            el('td', { class: gradeClass }, [r.grade]),
+            el('td', {}, [formatDuration(r.durationMs)]),
+          ]);
+        })
+      ),
+    ]),
+  ]);
+}
+
+function countMastered(state) {
+  let c = 0;
+  for (const id in state.exercises) {
+    if (isMastered(state.exercises[id])) c++;
+  }
+  return c;
+}
+
+function formatRelative(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return 'Just now';
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
+  if (ms < 7 * 86_400_000) return `${Math.floor(ms / 86_400_000)}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+// ============================================================================
+// CALIBRATION CARD (home-page widget) and CALIBRATION VIEW
+// ----------------------------------------------------------------------------
+// The home-page card surfaces calibration prominently when the user has not
+// yet calibrated, and shows status (last calibration time + saved offset)
+// when they have. Clicking through goes to the full calibration view.
+//
+// The full view runs CalibrationRunner, shows progress, and saves the result.
+// ============================================================================
+
+function renderCalibrationCard() {
+  const offset = getLatencyOffset();
+  const state = loadProgress();
+  const calibrated = !!state.calibratedAtISO;
+
+  if (!calibrated) {
+    return el('div', { class: 'calibration-card calibration-card-warn' }, [
+      el('div', {}, [
+        el('h3', {}, ['Calibrate before your first run']),
+        el('p', { class: 'muted' }, [
+          'Browser audio has variable latency. A 30-second calibration measures your offset and applies it so timing scoring is fair.',
+        ]),
+      ]),
+      el('a', { class: 'btn btn-primary', href: '#/calibrate' }, ['Calibrate now']),
+    ]);
+  }
+
+  const offsetMs = (offset * 1000).toFixed(0);
+  const offsetLabel = offset === 0
+    ? 'No offset'
+    : (offset > 0 ? `+${offsetMs}ms` : `${offsetMs}ms`);
+
+  return el('div', { class: 'calibration-card' }, [
+    el('div', {}, [
+      el('h3', {}, ['Calibration']),
+      el('p', { class: 'muted' }, [
+        `Offset: ${offsetLabel}  ·  Calibrated ${formatRelative(state.calibratedAtISO)}.`,
+      ]),
+    ]),
+    el('a', { class: 'btn', href: '#/calibrate' }, ['Recalibrate']),
+  ]);
+}
+
+// ----------------------------------------------------------------------------
+// Calibration view
+// ----------------------------------------------------------------------------
+
+export function renderCalibration(deps, view) {
+  clear(view);
+
+  let runner = null;
+  let unsubUpdate = null;
+  let unsubComplete = null;
+
+  const statusEl = el('div', { class: 'calib-status' }, ['Ready when you are.']);
+  const counterEl = el('div', { class: 'calib-counter' }, [`0 / ${CALIB_CONFIG.beats} captured`]);
+  const liveOffsetEl = el('div', { class: 'calib-live-offset muted' }, ['']);
+
+  const startBtn = el('button', { class: 'btn btn-primary btn-large', onclick: startCalibration }, ['Start Calibration']);
+  const stopBtn = el('button', { class: 'btn', onclick: stopCalibration }, ['Stop']);
+  stopBtn.style.display = 'none';
+
+  const resultsArea = el('div', { class: 'calib-results' });
+
+  view.appendChild(el('section', { class: 'calibration-view' }, [
+    el('h1', {}, ['Latency Calibration']),
+    el('p', { class: 'lede' }, [
+      `Tap along to ${CALIB_CONFIG.beats} steady clicks at ${CALIB_CONFIG.bpm} BPM. ` +
+      `We'll measure your average offset and apply it to all future scoring.`,
+    ]),
+    el('div', { class: 'calib-card' }, [
+      el('h3', {}, ['How it works']),
+      el('ol', {}, [
+        el('li', {}, [`The metronome plays a ${CALIB_CONFIG.leadBeats}-beat countdown.`]),
+        el('li', {}, [`Then ${CALIB_CONFIG.beats} more clicks. Tap on each one.`]),
+        el('li', {}, ['We compute the median timing offset from your taps and save it.']),
+      ]),
+      statusEl,
+      counterEl,
+      liveOffsetEl,
+      el('div', { class: 'calib-controls' }, [startBtn, stopBtn]),
+      resultsArea,
+    ]),
+  ]));
+
+  // Cleanup on navigation away
+  window.addEventListener('hashchange', cleanupOnNav, { once: true });
+  function cleanupOnNav() {
+    if (unsubUpdate) unsubUpdate();
+    if (unsubComplete) unsubComplete();
+    if (runner) runner.stop();
+  }
+
+  // ---------- handlers ----------
+
+  async function startCalibration() {
+    clear(resultsArea);
+    statusEl.textContent = 'Starting...';
+    counterEl.textContent = `0 / ${CALIB_CONFIG.beats} captured`;
+    liveOffsetEl.textContent = '';
+    startBtn.style.display = 'none';
+    stopBtn.style.display = '';
+
+    try {
+      runner = await deps.getCalibration();
+      if (unsubUpdate) unsubUpdate();
+      if (unsubComplete) unsubComplete();
+
+      unsubUpdate = runner.onUpdate((evt) => {
+        if (evt.kind === 'state') {
+          if (evt.state === 'countdown') statusEl.textContent = 'Get ready - listen to the countdown clicks.';
+          else if (evt.state === 'capturing') statusEl.textContent = 'Tap on every click now.';
+          else if (evt.state === 'complete') statusEl.textContent = 'Done.';
+          return;
+        }
+        if (evt.capturedCount != null) {
+          counterEl.textContent = `${evt.capturedCount} / ${evt.targetCount} captured`;
+        }
+        // Show running median if we have at least 2 samples
+        if (evt.expected) {
+          const deltas = evt.expected.filter((e) => e.delta != null).map((e) => e.delta);
+          if (deltas.length >= 2) {
+            const sorted = [...deltas].sort((a, b) => a - b);
+            const med = sorted[Math.floor(sorted.length / 2)];
+            const sign = med >= 0 ? '+' : '';
+            liveOffsetEl.textContent = `Running median offset: ${sign}${(med * 1000).toFixed(0)}ms`;
+          }
+        }
+      });
+
+      unsubComplete = runner.onComplete((result) => {
+        startBtn.style.display = '';
+        stopBtn.style.display = 'none';
+        showResult(result);
+      });
+
+      await runner.start();
+    } catch (err) {
+      startBtn.style.display = '';
+      stopBtn.style.display = 'none';
+      statusEl.textContent = 'Could not start';
+      resultsArea.appendChild(el('div', { class: 'error-card' }, [
+        el('h4', {}, ['Calibration failed to start']),
+        el('p', {}, [err.message]),
+        err.name === 'NotAllowedError'
+          ? el('p', { class: 'muted' }, ['Microphone access is required. Allow it in your browser settings and try again.'])
+          : null,
+      ]));
+    }
+  }
+
+  function stopCalibration() {
+    if (runner) runner.stop();
+    startBtn.style.display = '';
+    stopBtn.style.display = 'none';
+    statusEl.textContent = 'Stopped.';
+  }
+
+  function showResult(result) {
+    if (!result.ok) {
+      const reasonText = {
+        'no-hits':       'We did not detect any hits. Make sure your microphone is on and try again.',
+        'too-few-hits':  `We only got ${result.sampleCount} usable hits. Tap on every click and try again.`,
+        'inconsistent':  `Your taps were too inconsistent (spread of ±${(result.meanAbsDevSec * 1000).toFixed(0)}ms). The number won't be accurate. Retry with steady taps.`,
+      }[result.reason] || 'Calibration was inconclusive.';
+
+      resultsArea.appendChild(el('div', { class: 'calib-result calib-result-warn' }, [
+        el('h4', {}, ['Calibration not saved']),
+        el('p', {}, [reasonText]),
+        el('div', { class: 'calib-actions' }, [
+          el('button', { class: 'btn btn-primary', onclick: startCalibration }, ['Try Again']),
+        ]),
+      ]));
+      return;
+    }
+
+    const offsetMs = (result.offsetSec * 1000).toFixed(1);
+    const sign = result.offsetSec >= 0 ? '+' : '';
+    const devMs = (result.meanAbsDevSec * 1000).toFixed(1);
+
+    setLatencyOffset(result.offsetSec);
+
+    resultsArea.appendChild(el('div', { class: 'calib-result calib-result-ok' }, [
+      el('h4', {}, ['Calibration saved']),
+      el('p', {}, [
+        `Your audio latency is ${sign}${offsetMs}ms (consistency: ±${devMs}ms across ${result.sampleCount} hits). ` +
+        `This offset will be applied automatically on all future runs.`,
+      ]),
+      el('p', { class: 'muted small' }, [
+        result.offsetSec > 0.040
+          ? 'A positive offset is normal - it accounts for the time between when audio leaves your speaker and your hit reaches the mic.'
+          : (result.offsetSec < -0.040
+              ? 'A negative offset is unusual; double-check that you tapped in time with the click rather than ahead of it.'
+              : 'A near-zero offset means your setup is already close to ideal.'),
+      ]),
+      el('div', { class: 'calib-actions' }, [
+        el('a', { class: 'btn', href: '#/exercises' }, ['Browse Exercises']),
+        el('a', { class: 'btn', href: '#/home' }, ['Home']),
+        el('button', { class: 'btn', onclick: () => { clearCalibration(); startCalibration(); } }, ['Recalibrate']),
+      ]),
+    ]));
+  }
 }

@@ -19,8 +19,10 @@ index.html
     ├── js/scorer.js          Timing classifier and suggestions
     ├── js/engine.js          Play-along orchestrator
     ├── js/exercises.js       Exercise content (data)
-    ├── js/views.js           View renderers (home, exercises, play, ...)
-    └── js/visualizer.js      Canvas-based scrolling beat grid
+    ├── js/views.js           View renderers (home, exercises, play, metronome, progress, calibrate)
+    ├── js/visualizer.js      Canvas-based scrolling beat grid
+    ├── js/storage.js         localStorage progress tracking + calibration
+    └── js/calibration.js     One-shot latency calibration runner
 ```
 
 ## 2. Why a web app instead of native mobile?
@@ -276,6 +278,100 @@ This is enough for our four views without bringing in a router library.
 The phase transitions are driven by the engine's `onUpdate` and `onComplete` callbacks rather than timers, so the UI stays in sync with actual audio state, not a guess.
 
 **Letter grade.** `letterGrade(stats)` in `views.js` maps accuracy and perfect-rate to A–F. The boundaries are tunable; current values are A ≥ 95% accuracy with 70%+ perfect, B ≥ 85%, C ≥ 70%, D ≥ 50%, F otherwise.
+
+## 10d. Standalone metronome view (Day 4)
+
+`renderMetronome()` in `views.js` is a standalone view separate from exercise play. It reuses the same `Metronome` class as the engine — the BPM and time-signature getters/setters were designed to be called from outside the engine for exactly this case.
+
+**Why a separate view?** The requirements doc lists "metronome with adjustable tempo" as a Need (must-have for MVP), distinct from the play-along feature. Drummers also use a metronome standalone for warm-ups and tempo-locking practice that isn't tied to a specific exercise.
+
+**Range and time signatures.** UI is clamped to 40–300 BPM per the requirements doc. The underlying class accepts 20–300 (matching the original Python prototype); the tighter UI range is enforced in `setTempo()`. Time signatures: 2/4, 3/4, 4/4, and 6/8 — the spec required 4/4 and 3/4; 2/4 and 6/8 are free since the class handles arbitrary `beatsPerMeasure`.
+
+**Visual beat indicator.** A row of dots, one per beat in the measure, lights up on each click. The downbeat dot is larger and lights in a different color (`--accent-2`) so the user can see the measure boundary at a glance. Lighting is driven by `metro.onBeat`, which fires at the same `setTimeout` delay used for audio playback so the visual aligns with the audible click.
+
+**Cleanup contract.** A `hashchange` one-shot listener stops the metronome and unsubscribes the `onBeat` callback when the user navigates away. Without this, the metronome would continue clicking after the user moved to another view. Same pattern is used in the play view's running phase.
+
+## 10e. Progress tracking (Day 4)
+
+`js/storage.js` is a pure localStorage wrapper that owns the progress schema. It does not import anything from the audio modules and can be unit-tested in isolation.
+
+**Storage schema.**
+
+```json
+{
+  "schemaVersion": 1,
+  "totalPracticeMs": 1234567,
+  "totalRuns": 42,
+  "exercises": {
+    "rud-singles-beg": {
+      "runs": 7,
+      "bestAccuracy": 0.92,
+      "bestGrade": "A",
+      "lastRunISO": "2026-04-26T...",
+      "totalPracticeMs": 234000
+    }
+  },
+  "runs": [
+    { "exerciseId": "...", "accuracy": 0.92, "grade": "A", "durationMs": 35000, "atISO": "..." }
+  ]
+}
+```
+
+The `runs` array is capped at 50 entries (most recent first) so the blob never grows without bound.
+
+**Mastery rule.** An exercise is "mastered" when its `bestGrade` is B or higher. The constant lives in `MASTERY_GRADE` so it's tunable in one place. The dashboard's per-category progress bar shows `mastered / total`, not `played / total`, because we want progress to mean *quality of execution*, not just attendance.
+
+**Failure modes.** localStorage can be unavailable (private browsing, disabled, full quota). Every `load()`, `save()`, `recordRun()`, and `reset()` call wraps in try/catch and returns safe defaults. Persistence failure never breaks the rest of the app — the user just won't see their progress next session.
+
+**Schema versioning.** `schemaVersion` is checked on read. A mismatched version returns the default state rather than silently corrupting data. When we add fields later (e.g., per-category practice time totals), we'll bump the version and add a migration step — for the MVP, reset-on-mismatch is the safer rule.
+
+**Wiring into the play view.** `renderPlay`'s results phase calls `recordRun(exercise.id, { accuracy, grade, durationMs })` after computing the letter grade. The duration is wall-clock time from `engine.start()` to `onComplete` (so it includes the 1-measure countdown plus the actual exercise plus the 250ms tail window). All wrapped in try/catch — if storage fails, the results screen still renders.
+
+**Dashboard.** `renderProgress` reads the state and renders four sections: top-line stats, per-category cards with progress bars, recent-runs table (last 10), and a Reset button that confirms before wiping. The dashboard is fully derived from the stored state — no separate "dashboard state" exists, which means a fresh load always shows truth.
+
+## 10f. Latency calibration (Day 5)
+
+Browser audio output and microphone input both have hardware/OS-level latency that varies widely. Bluetooth headphones add tens of milliseconds; USB mics add a few; on-board audio sits in between. Without compensation, a perfectly-on-time drummer registers as systematically late at the scorer.
+
+`js/calibration.js` defines a `CalibrationRunner` class that measures this offset and saves it. The flow:
+
+1. The user clicks **Calibrate** from the home page card or `#/calibrate`.
+2. A 60 BPM 4/4 metronome starts. Four lead-in beats give the user time to settle.
+3. Eight more beats follow; the user taps along.
+4. The runner uses the same `Scorer` class as the engine, with `latencyOffset = 0` and a tighter `pairWindow = 0.40s`. Each tap pairs with its nearest expected beat and gets a signed delta.
+5. After the run, deltas are sorted and the **median** is taken. The result is saved via `setLatencyOffset(seconds)` in storage.
+
+**Why median, not mean?** A missed tap or accidental double produces a wild outlier in the deltas array. Median ignores outliers by definition; mean would be dragged. We additionally require at least 4 successfully-paired hits before trusting the result; below that we report `ok: false` with a `'too-few-hits'` reason and prompt the user to retry. We also reject results where the mean-absolute-deviation from the median exceeds 120 ms (`'inconsistent'` reason) — that's the user not actually trying to tap on the click.
+
+**Why 60 BPM and 4/4?** Slow enough that any user can keep up. Beats are 1 second apart, which gives the scorer's pair window (400 ms here) lots of margin even if the user is off by a substantial amount.
+
+**Wiring into the engine.** `engine.js` imports `getLatencyOffset()` from storage and applies it when constructing the scorer for each run:
+
+```js
+this.scorer = new Scorer(expectedTimes, { latencyOffset: getLatencyOffset() });
+```
+
+If the user has never calibrated, `getLatencyOffset()` returns 0 and the scorer behaves identically to its uncalibrated default. So calibration is opt-in but recommended; the home-page card surfaces it prominently for first-time users.
+
+## 10g. Exercise content (Day 5)
+
+The library now contains 27 exercises: 3 categories × 3 tiers × 3 exercises per tier.
+
+**Rudiments** (sticking-focused): single stroke roll (quarter / eighth / paradiddle), double stroke roll (quarter / eighth / double paradiddle), triple stroke roll, paradiddle-diddle, and a hand-to-hand half-note warm-up.
+
+**Timing** (subdivision and pulse focus): half notes, whole notes, quarter notes, eighth notes, 16th notes, eighth-note triplets, off-beat syncopation, galloping rhythm (eighth + two 16ths), and 3-over-4 polyrhythm.
+
+**Dynamics** (volume and accent focus): quiet / loud / soft-loud-alternating beginner exercises, accent-on-2-and-4, accent-on-the-and, accent-every-third-eighth intermediate exercises, and crescendo / decrescendo / wave-shaped advanced exercises.
+
+**Pattern construction.** Three helper functions in `exercises.js` keep the data terse and explainable:
+
+- `even(count, subdivision)` for evenly-spaced patterns. Most exercises use this.
+- `triplets(beats)` for triplet patterns (3 hits per beat).
+- `patternFromMask(mask, repeats, subdivision)` for irregular but repeating rhythms — the gallop pattern uses this with mask `"X.XX"` to place hits at 0, 0.5, and 0.75 of each beat.
+
+Polyrhythmic patterns (3-over-4) and dotted-rhythm patterns are written as inline arrays for clarity.
+
+**Dynamics caveat.** The scorer judges timing only — it does not measure volume against the target dynamic. The exercise's `targetDynamic` field is currently a UI hint ("play this softly") rather than a scored constraint. Volume-aware scoring is a wishes-tier feature; closing it would require comparing each hit's peak amplitude to a target curve.
 
 ## 11. Why no framework?
 

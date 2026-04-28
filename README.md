@@ -1,10 +1,10 @@
 # Drum Trainer
 
-A web-based drum learning app: structured exercises, live timing feedback against a metronome, and progress tracking. Inspired by Guitar Hero but focused on education.
+A web-based drum learning app: structured exercises, live timing feedback against a metronome, and progress tracking.
 
-## Status
+## Current Version
 
-**Day 3 of 6** — the visual play-along loop is in. Exercise browser, scrolling beat-grid visualizer (Guitar-Hero-style highway with judgment line, falling notes, and PERFECT/GOOD/MISS flashes), live in-run HUD, and a polished results screen with letter grade + tailored suggestions are all working end-to-end.
+latency calibration is in (one-shot 60 BPM tap-along that saves a median offset and applies it to every future run), and the exercise library has expanded to 27 exercises (3 per tier per category) covering rudiments, timing subdivisions, polyrhythms, accents, and dynamics shaping. The app now runs end-to-end with all the features the requirements doc lists as Needs.
 
 ## Project documentation
 
@@ -45,8 +45,10 @@ Drum App/
 │   ├── exercises.js         Exercise library (data + lookups)
 │   ├── scorer.js            Timing classifier + suggestions engine
 │   ├── engine.js            Play-along orchestrator
-│   ├── views.js             View renderers (home, exercises, play, ...)
-│   └── visualizer.js        Canvas scrolling beat-grid visualizer
+│   ├── views.js             View renderers (home, exercises, play, metronome, progress, calibrate)
+│   ├── visualizer.js        Canvas scrolling beat-grid visualizer
+│   ├── storage.js           localStorage progress tracking + calibration offset
+│   └── calibration.js       One-shot latency calibration runner
 ├── assets/
 │   ├── click.wav            Regular beat sample
 │   └── click-accent.wav     Downbeat / accent sample
@@ -62,17 +64,8 @@ The Web Audio modules preserve the logic from the original Python prototype:
 - **metronome.js** — same 20–300 BPM validation range as `metronome.py`, uses lookahead scheduling (`AudioContext.currentTime` + 100ms lookahead, 25ms scheduler tick) for sample-accurate timing.
 - **listener.js** — same `THRESHOLD = 0.15` and `COOLDOWN = 0.15s` semantics as `listener.py`, using `AnalyserNode.getFloatTimeDomainData` to sample peak amplitude per block.
 
-## Roadmap
-
-- **Day 1** ✅ — Scaffolding, metronome, mic listener
-- **Day 2** ✅ — Exercise data model, play-along engine, timing scorer, suggestions engine
-- **Day 3** ✅ — Exercise browser UI, scrolling beat-grid visualizer, live HUD, polished results screen with letter grade + suggestions
-- **Day 4** — Standalone metronome view, progress tracking + dashboard
-- **Day 5** — Flesh out exercise content (rudiments, timing, dynamics), mic + timing calibration
-- **Day 6** — Polish, README, submission write-up
-
 ## Scope note
 
-The original Requirements Analysis specified a cross-platform mobile app. Given the 6-day timeline and the need for a visually rich play-along experience, the project has been refocused as a web app prototype. This gives the same cross-platform reach (browsers on desktop and mobile) while enabling precise Web Audio scheduling and a scrolling beat-grid visual. Native mobile remains a future-wishes item.
+The original Requirements Analysis specified a cross-platform mobile app. Given the timeline and the need for a visually rich play-along experience, the project has been refocused as a web app prototype. This gives the same cross-platform reach (browsers on desktop and mobile) while enabling precise Web Audio scheduling and a scrolling beat-grid visual. Native mobile remains a future-wishes item.
 
 Coordination category has been cut from MVP scope; the app ships with three categories (rudiments, timing, dynamics), each with beginner / intermediate / advanced tiers.

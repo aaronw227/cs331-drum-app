@@ -48,6 +48,7 @@
 // ============================================================================
 
 import { Scorer, generateSuggestions } from './scorer.js';
+import { getLatencyOffset } from './storage.js';
 
 const COUNTDOWN_MEASURES = 1;
 const COMPLETION_TAIL_SEC = 0.250;   // wait this long after last beat to finalize
@@ -146,7 +147,10 @@ export class PlayAlongEngine {
     const expectedTimes = this.exercise.pattern.map(
       (p) => this.startTime + p * this.secondsPerBeat
     );
-    this.scorer = new Scorer(expectedTimes);
+    // Apply the saved calibration offset so this user's scoring is fair.
+    // If the user has never calibrated, getLatencyOffset() returns 0 and
+    // the scorer behaves identically to its uncalibrated default.
+    this.scorer = new Scorer(expectedTimes, { latencyOffset: getLatencyOffset() });
     this.endTime = expectedTimes[expectedTimes.length - 1] + COMPLETION_TAIL_SEC;
 
     // 3. Start metronome (immediate). It will play through the countdown and

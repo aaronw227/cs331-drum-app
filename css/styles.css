@@ -448,7 +448,366 @@ h4 { font-size: 1rem;    margin: 1rem 0 0.5rem; }
 }
 .error-card h3 { color: var(--bad); margin-top: 0; }
 
-/* -- 7. Placeholders -------------------------------------------------------- */
+/* -- 7. Metronome view ------------------------------------------------------ */
+
+.metronome-view { max-width: 760px; margin: 0 auto; }
+.metro-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  margin-top: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.beat-row-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+.beat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.beat-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--border-2);
+  transition: background .08s ease, transform .08s ease, border-color .15s ease;
+}
+.beat-dot-accent {
+  width: 28px;
+  height: 28px;
+}
+.beat-dot.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.2);
+}
+.beat-dot-accent.active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.tempo-display {
+  text-align: center;
+  margin: 0.5rem 0 1.25rem;
+}
+.tempo-value {
+  font-size: 4.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+}
+.tempo-unit {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.tempo-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.tempo-step {
+  flex: 0 0 auto;
+  min-width: 3rem;
+  font-weight: 600;
+}
+.tempo-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+.tempo-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+.tempo-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+
+.tempo-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+.tempo-input {
+  width: 6rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.time-sig-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 1.25rem;
+}
+.time-sig-btn { min-width: 3.25rem; }
+.time-sig-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.metro-start-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+/* -- 8. Progress dashboard -------------------------------------------------- */
+
+.progress-view h1 { margin-bottom: 0.5rem; }
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+.progress-stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+}
+.progress-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+.progress-stat-label {
+  font-size: 0.78rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 0.2rem;
+}
+
+.progress-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.progress-category-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+.progress-category-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.progress-category-head h3 { margin: 0; }
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--good));
+  transition: width .3s ease;
+}
+
+.progress-exercise-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.progress-ex {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.92rem;
+}
+.progress-ex:last-child { border-bottom: 0; }
+.progress-ex-title { color: var(--fg); font-weight: 500; }
+.progress-ex-status { color: var(--fg-muted); font-size: 0.83rem; margin-top: 0.15rem; }
+.progress-ex-mastered .progress-ex-title { color: var(--good); }
+.progress-ex-mastered .progress-ex-status { color: var(--good); opacity: 0.85; }
+.progress-ex-new .progress-ex-status { opacity: 0.55; }
+
+.recent-runs { margin-top: 2rem; }
+.recent-runs h3 { margin-bottom: 0.5rem; }
+.recent-runs-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.recent-runs-table th,
+.recent-runs-table td {
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.92rem;
+}
+.recent-runs-table th {
+  background: var(--bg);
+  color: var(--fg-muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.recent-runs-table tr:last-child td { border-bottom: 0; }
+.grade-cell {
+  font-weight: 700;
+  text-align: center;
+  width: 4ch;
+}
+.grade-cell.grade-a { color: var(--good); }
+.grade-cell.grade-b { color: var(--accent); }
+.grade-cell.grade-c { color: var(--warn); }
+.grade-cell.grade-d { color: var(--warn); opacity: 0.75; }
+.grade-cell.grade-f { color: var(--bad); }
+
+.progress-empty {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius);
+}
+
+.progress-reset {
+  margin-top: 2rem;
+  text-align: right;
+}
+
+/* -- 9. Calibration --------------------------------------------------------- */
+
+.calibration-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+.calibration-card h3 { margin: 0 0 0.25rem; }
+.calibration-card-warn {
+  border-color: var(--warn);
+  background: linear-gradient(180deg, rgba(245,158,11,0.08), var(--bg-card));
+}
+
+.calibration-view { max-width: 640px; margin: 0 auto; }
+.calib-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-top: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.calib-card ol { padding-left: 1.4rem; }
+.calib-card li { margin: 0.4rem 0; color: var(--fg); }
+
+.calib-status {
+  margin: 1.25rem 0 0.5rem;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1.05rem;
+  text-align: center;
+  font-weight: 600;
+}
+.calib-counter {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+.calib-live-offset {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.95rem;
+  min-height: 1.4em;
+  margin-bottom: 1rem;
+}
+.calib-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.calib-result {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-top: 1rem;
+}
+.calib-result-ok {
+  border-color: var(--good);
+  background: linear-gradient(180deg, rgba(34,197,94,0.08), var(--bg));
+}
+.calib-result-warn {
+  border-color: var(--warn);
+  background: linear-gradient(180deg, rgba(245,158,11,0.08), var(--bg));
+}
+.calib-result h4 { margin-top: 0; }
+.calib-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+/* -- 10. Placeholders ------------------------------------------------------- */
 
 .placeholder {
   background: var(--bg-card);
